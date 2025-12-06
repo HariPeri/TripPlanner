@@ -31,27 +31,61 @@ const TravelPlannerApp = () => {
   const [tripDetails, setTripDetails] = useState({ days: [] });
 
   // Auth Handlers
-  const handleLogin = () => {
-    if (loginForm.email && loginForm.password) {
-      setUser(initialUser);
-      setIsLoggedIn(true);
-      setCurrentView('dashboard');
-    }
-  };
+const handleLogin = async () => {
+  if (!loginForm.email || !loginForm.password) {
+    alert('Please fill in all fields');
+    return;
+  }
 
-  const handleSignup = () => {
-    if (signupForm.email && signupForm.username && signupForm.password) {
-      const newUser = {
-        email: signupForm.email,
-        username: signupForm.username,
-        firstName: signupForm.firstName,
-        lastName: signupForm.lastName,
-      };
-      setUser(newUser);
-      setIsLoggedIn(true);
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(loginForm)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setUser(data.user);
       setCurrentView('dashboard');
+      fetchTrips(data.user.email);
+    } else {
+      alert(data.error || 'Login failed');
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    alert('Login failed');
+  }
+};
+
+const handleSignup = async () => {
+  if (!signupForm.email || !signupForm.username || !signupForm.password) {
+    alert('Please fill in all required fields');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(signupForm)
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setUser(data.user);
+      setCurrentView('dashboard');
+      setTrips([]);
+    } else {
+      alert(data.error || 'Signup failed');
+    }
+  } catch (error) {
+    console.error('Signup error:', error);
+    alert('Signup failed');
+  }
+};
 
   const handleLogout = () => {
     setUser(null);
@@ -60,6 +94,18 @@ const TravelPlannerApp = () => {
   };
 
   // Trips/ Itinerary Handlers
+  const fetchTrips = async (email) => {
+    try {
+      const response = await fetch(`/api/trips?email=${encodeURIComponent(email)}`);
+      const data = await response.json();
+      if (data.trips) {
+        setTrips(data.trips.map(t => ({ ...t, status: 'upcoming' })));
+      }
+    } catch (error) {
+      console.error('Fetch trips error:', error);
+    }
+  };
+  
   const handleCreateTrip = () => {
     if (newTripForm.title && newTripForm.country) {
       const newTrip = {
