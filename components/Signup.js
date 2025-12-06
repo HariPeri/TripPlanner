@@ -3,7 +3,7 @@ import { ArrowLeft, MapPin } from 'lucide-react';
 
 const Signup = ({ signupForm, setSignupForm, handleSignup, setCurrentView }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
         <div className="flex items-center justify-center mb-6">
           <MapPin className="w-10 h-10 text-indigo-600 mr-2" />
