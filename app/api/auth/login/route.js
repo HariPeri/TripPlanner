@@ -50,7 +50,7 @@ export async function POST(request) {
       );
     }
 
-    //auth success – later you can add JWT/cookies here
+    
     return NextResponse.json(
       {
         success: true,
