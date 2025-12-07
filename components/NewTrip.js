@@ -1,9 +1,30 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, ArrowLeft } from 'lucide-react';
-import { sampleCountries } from '@/lib/mockData';
 
-export default function NewTripForm({ newTripForm, setNewTripForm, onCreateTrip, setCurrentView  }) {
+export default function NewTripForm({ newTripForm, setNewTripForm, handleCreateTrip, setCurrentView }) {
+  const [countries, setCountries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch countries from database when component mounts
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch('/api/countries/list');
+        const data = await response.json();
+        if (data.countries) {
+          setCountries(data.countries);
+        }
+      } catch (error) {
+        console.error('Fetch countries error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm">
@@ -42,9 +63,12 @@ export default function NewTripForm({ newTripForm, setNewTripForm, onCreateTrip,
               value={newTripForm.country}
               onChange={(e) => setNewTripForm({ ...newTripForm, country: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              disabled={loading}
             >
-              <option value="">Select a country</option>
-              {sampleCountries.map(country => (
+              <option value="">
+                {loading ? 'Loading countries...' : 'Select a country'}
+              </option>
+              {countries.map(country => (
                 <option key={country.country_name} value={country.country_name}>
                   {country.country_name} ({country.continent})
                 </option>
@@ -65,7 +89,7 @@ export default function NewTripForm({ newTripForm, setNewTripForm, onCreateTrip,
           </div>
 
           <button
-            onClick={onCreateTrip}
+            onClick={handleCreateTrip}
             className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-medium"
           >
             Create Trip

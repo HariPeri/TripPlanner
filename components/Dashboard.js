@@ -74,9 +74,6 @@ const Dashboard = ({
                 </button>
               </div>
               <div className="mt-4">
-                <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                  {trip.status}
-                </span>
               </div>
               <button
                 onClick={() => handleViewTrip(trip)}

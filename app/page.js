@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { MapPin } from 'lucide-react';
 
-import { initialUser, sampleTrips as initialTrips, sampleCountries } from '@/lib/mockData';
 import HomePage from '@/components/HomePage';
 import Login from '@/components/Login';
 import Signup from '@/components/Signup';
@@ -11,11 +10,10 @@ import Dashboard from '@/components/Dashboard';
 import NewTrip from '@/components/NewTrip';
 import TripDetail from '@/components/TripDetail';
 
-const TravelPlannerApp = () => {
+const TripPlanner = () => {
   const [currentView, setCurrentView] = useState('homepage');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [trips, setTrips] = useState(initialTrips);
+  const [trips, setTrips] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrip, setSelectedTrip] = useState(null);
 
@@ -89,104 +87,212 @@ const handleSignup = async () => {
 
   const handleLogout = () => {
     setUser(null);
-    setIsLoggedIn(false);
     setCurrentView('homepage');
   };
 
-  // Trips/ Itinerary Handlers
+  // Fetch trips from database
   const fetchTrips = async (email) => {
     try {
-      const response = await fetch(`/api/trips?email=${encodeURIComponent(email)}`);
+      const response = await fetch(`/api/trips/list?email=${encodeURIComponent(email)}`);
       const data = await response.json();
       if (data.trips) {
-        setTrips(data.trips.map(t => ({ ...t, status: 'upcoming' })));
+        setTrips(data.trips);
       }
     } catch (error) {
       console.error('Fetch trips error:', error);
     }
   };
-  
-  const handleCreateTrip = () => {
-    if (newTripForm.title && newTripForm.country) {
-      const newTrip = {
-        trip_id: trips.length + 1,
-        title: newTripForm.title,
-        country_name: newTripForm.country,
-        status: 'upcoming',
-      };
-      setTrips([...trips, newTrip]);
 
-      const days = [];
-      for (let i = 1; i <= parseInt(newTripForm.days); i++) {
-        days.push({ number: i, items: [] });
+  // Create new trip
+  const handleCreateTrip = async () => {
+    if (!newTripForm.title || !newTripForm.country) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/trips/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email,
+          title: newTripForm.title,
+          country: newTripForm.country,
+          days: parseInt(newTripForm.days)
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Reload trips and navigate to the new trip
+        await fetchTrips(user.email);
+        await handleViewTripById(data.tripId);
+        setNewTripForm({ title: '', country: '', days: 1 });
+      } else {
+        alert(data.error || 'Failed to create trip');
       }
-      setTripDetails({ ...newTrip, days });
-      setSelectedTrip(newTrip);
-      setNewTripForm({ title: '', country: '', days: 1 });
-      setCurrentView('tripDetail');
+    } catch (error) {
+      console.error('Create trip error:', error);
+      alert('Failed to create trip');
     }
   };
 
-  const handleDeleteTrip = (tripId) => {
-    setTrips(trips.filter((t) => t.trip_id !== tripId));
-    if (selectedTrip?.trip_id === tripId) {
-      setCurrentView('dashboard');
+  // Delete trip
+  const handleDeleteTrip = async (tripId) => {
+    if (!confirm('Are you sure you want to delete this trip?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/trips/delete?tripId=${tripId}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await fetchTrips(user.email);
+        if (selectedTrip?.trip_id === tripId) {
+          setCurrentView('dashboard');
+        }
+      } else {
+        alert(data.error || 'Failed to delete trip');
+      }
+    } catch (error) {
+      console.error('Delete trip error:', error);
+      alert('Failed to delete trip');
     }
   };
 
-  const handleViewTrip = (trip) => {
-    if (!tripDetails.days || tripDetails.trip_id !== trip.trip_id) {
-      const days = [];
-      for (let i = 1; i <= 3; i++) {
-        days.push({ number: i, items: [] });
+  // View trip details
+  const handleViewTrip = async (trip) => {
+    try {
+      const response = await fetch(`/api/trips/detail?tripId=${trip.trip_id}`);
+      const data = await response.json();
+
+      if (data.tripDetails) {
+        setTripDetails(data.tripDetails);
+        setSelectedTrip(trip);
+        setCurrentView('tripDetail');
+      } else {
+        alert(data.error || 'Failed to load trip details');
       }
-      setTripDetails({ ...trip, days });
+    } catch (error) {
+      console.error('View trip error:', error);
+      alert('Failed to load trip details');
     }
-    setSelectedTrip(trip);
-    setCurrentView('tripDetail');
   };
 
-  const addItineraryItem = (dayNumber) => {
-    const updatedDays = tripDetails.days.map((day) => {
-      if (day.number === dayNumber) {
-        const newItem = {
-          item_id: day.items.length + 1,
-          startTime: '09:00',
-          endTime: '10:00',
-          activity: '',
-          notes: '',
-        };
-        return { ...day, items: [...day.items, newItem] };
+  // Helper to view trip by ID
+  const handleViewTripById = async (tripId) => {
+    try {
+      const response = await fetch(`/api/trips/detail?tripId=${tripId}`);
+      const data = await response.json();
+
+      if (data.tripDetails) {
+        setTripDetails(data.tripDetails);
+        setSelectedTrip(data.tripDetails);
+        setCurrentView('tripDetail');
       }
-      return day;
-    });
-    setTripDetails({ ...tripDetails, days: updatedDays });
+    } catch (error) {
+      console.error('View trip error:', error);
+    }
   };
 
-  const updateItineraryItem = (dayNumber, itemId, field, value) => {
-    const updatedDays = tripDetails.days.map((day) => {
-      if (day.number === dayNumber) {
-        const updatedItems = day.items.map((item) => {
-          if (item.item_id === itemId) {
-            return { ...item, [field]: value };
+  // Add itinerary item
+  const addItineraryItem = async (dayNumber) => {
+    try {
+      const response = await fetch('/api/itinerary/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripId: tripDetails.trip_id,
+          dayNumber: dayNumber
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Reload trip details
+        await handleViewTripById(tripDetails.trip_id);
+      } else {
+        alert(data.error || 'Failed to add activity');
+      }
+    } catch (error) {
+      console.error('Add item error:', error);
+      alert('Failed to add activity');
+    }
+  };
+
+  // Update itinerary item
+  const updateItineraryItem = async (dayNumber, itemId, field, value) => {
+    try {
+      const response = await fetch('/api/itinerary/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: itemId,
+          dayNumber: dayNumber,
+          tripId: tripDetails.trip_id,
+          field: field,
+          value: value
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        console.error('Update failed:', data.error);
+      }
+      
+      // Update local state immediately for better UX
+      const updatedDays = tripDetails.days.map((day) => {
+        if (day.number === dayNumber) {
+          const updatedItems = day.items.map((item) => {
+            if (item.item_id === itemId) {
+              return { ...item, [field]: value };
+            }
+            return item;
+          });
+          return { ...day, items: updatedItems };
+        }
+        return day;
+      });
+      setTripDetails({ ...tripDetails, days: updatedDays });
+      
+    } catch (error) {
+      console.error('Update item error:', error);
+    }
+  };
+
+  // Delete itinerary item
+  const deleteItineraryItem = async (dayNumber, itemId) => {
+    try {
+      const response = await fetch(
+        `/api/itinerary/delete?itemId=${itemId}&dayNumber=${dayNumber}&tripId=${tripDetails.trip_id}`,
+        { method: 'DELETE' }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        const updatedDays = tripDetails.days.map((day) => {
+          if (day.number === dayNumber) {
+            return { ...day, items: day.items.filter((item) => item.item_id !== itemId) };
           }
-          return item;
+          return day;
         });
-        return { ...day, items: updatedItems };
+        setTripDetails({ ...tripDetails, days: updatedDays });
+      } else {
+        alert(data.error || 'Failed to delete activity');
       }
-      return day;
-    });
-    setTripDetails({ ...tripDetails, days: updatedDays });
-  };
-
-  const deleteItineraryItem = (dayNumber, itemId) => {
-    const updatedDays = tripDetails.days.map((day) => {
-      if (day.number === dayNumber) {
-        return { ...day, items: day.items.filter((item) => item.item_id !== itemId) };
-      }
-      return day;
-    });
-    setTripDetails({ ...tripDetails, days: updatedDays });
+    } catch (error) {
+      console.error('Delete item error:', error);
+      alert('Failed to delete activity');
+    }
   };
 
   const filteredTrips = trips.filter((trip) =>
@@ -241,7 +347,6 @@ const handleSignup = async () => {
         newTripForm={newTripForm}
         setNewTripForm={setNewTripForm}
         handleCreateTrip={handleCreateTrip}
-        sampleCountries={sampleCountries}
         setCurrentView={setCurrentView}
       />
     );
@@ -262,4 +367,4 @@ const handleSignup = async () => {
   return null;
 };
 
-export default TravelPlannerApp;
+export default TripPlanner;
