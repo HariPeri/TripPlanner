@@ -239,7 +239,7 @@ const handleSignup = async () => {
   };
 
   // Update itinerary item
-  const updateItineraryItem = async (dayNumber, itemId, field, value) => {
+  const updateItineraryItem = async (dayNumber, itemId, updates) => {
     try {
       const response = await fetch('/api/itinerary/update', {
         method: 'PUT',
@@ -248,36 +248,26 @@ const handleSignup = async () => {
           itemId: itemId,
           dayNumber: dayNumber,
           tripId: tripDetails.trip_id,
-          field: field,
-          value: value
+          updates: updates,
+          userEmail: user.email  // Add this line
         })
       });
-
+  
       const data = await response.json();
-
-      if (!data.success) {
+  
+      if (data.success) {
+        await handleViewTripById(tripDetails.trip_id);
+      } else {
         console.error('Update failed:', data.error);
       }
       
-      // Update local state immediately for better UX
-      const updatedDays = tripDetails.days.map((day) => {
-        if (day.number === dayNumber) {
-          const updatedItems = day.items.map((item) => {
-            if (item.item_id === itemId) {
-              return { ...item, [field]: value };
-            }
-            return item;
-          });
-          return { ...day, items: updatedItems };
-        }
-        return day;
-      });
-      setTripDetails({ ...tripDetails, days: updatedDays });
-      
+      return data.success;
     } catch (error) {
       console.error('Update item error:', error);
+      return false;
     }
   };
+  
 
   // Delete itinerary item
   const deleteItineraryItem = async (dayNumber, itemId) => {

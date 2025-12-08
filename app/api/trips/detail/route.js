@@ -17,21 +17,24 @@ export async function GET(request) {
     
     // Get all days and their itinerary items with activities
     const [days] = await pool.query(
-      `SELECT 
-        d.number,
-        ii.item_id,
-        ii.start_time as startTime,
-        ii.end_time as endTime,
-        ii.notes,
-        a.name as activity
-       FROM day d
-       LEFT JOIN itinerary_item ii ON d.number = ii.number AND d.trip_id = ii.trip_id
-       LEFT JOIN specifies s ON ii.item_id = s.item_id AND ii.number = s.number AND ii.trip_id = s.trip_id
-       LEFT JOIN activity a ON s.activity_id = a.activity_id
-       WHERE d.trip_id = ?
-       ORDER BY d.number, ii.start_time`,
-      [tripId]
-    );
+        `SELECT 
+          d.number,
+          ii.item_id,
+          ii.start_time as startTime,
+          ii.end_time as endTime,
+          ii.notes,
+          a.name as activity,
+          GROUP_CONCAT(ac.category) as category
+         FROM day d
+         LEFT JOIN itinerary_item ii ON d.number = ii.number AND d.trip_id = ii.trip_id
+         LEFT JOIN specifies s ON ii.item_id = s.item_id AND ii.number = s.number AND ii.trip_id = s.trip_id
+         LEFT JOIN activity a ON s.activity_id = a.activity_id
+         LEFT JOIN activity_category ac ON a.activity_id = ac.activity_id
+         WHERE d.trip_id = ?
+         GROUP BY d.number, ii.item_id
+         ORDER BY d.number, ii.start_time`,
+        [tripId]
+      );
     
     // Group items by day
     const daysMap = {};
