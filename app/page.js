@@ -212,31 +212,39 @@ const handleSignup = async () => {
     }
   };
 
-  // Add itinerary item
-  const addItineraryItem = async (dayNumber) => {
-    try {
-      const response = await fetch('/api/itinerary/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tripId: tripDetails.trip_id,
-          dayNumber: dayNumber
-        })
-      });
+ const addItineraryItem = async (dayNumber, activityType = "custom", activityId = null) => {
+  try {
+    const response = await fetch('/api/itinerary/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tripId: tripDetails.trip_id,
+        dayNumber: dayNumber,
+        activityType: activityType,
+        activityId: activityId
+      })
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.success) {
-        // Reload trip details
-        await handleViewTripById(tripDetails.trip_id);
-      } else {
-        alert(data.error || 'Failed to add activity');
-      }
-    } catch (error) {
-      console.error('Add item error:', error);
-      alert('Failed to add activity');
+    if (!data.success) {
+      alert(data.error || "Failed to add activity");
+      return null;
     }
-  };
+
+    // Refresh trip details so UI updates
+    await handleViewTripById(tripDetails.trip_id);
+
+    // RETURN THE itemId so TripDetail can use it
+    return data.itemId;
+
+  } catch (error) {
+    console.error("Add item error:", error);
+    alert("Failed to add activity");
+    return null;
+  }
+};
+
 
   // Update itinerary item
   const updateItineraryItem = async (dayNumber, itemId, updates) => {
