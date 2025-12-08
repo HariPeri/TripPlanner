@@ -85,7 +85,19 @@ const handleSignup = async () => {
   }
 };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user && user.email) {
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email }),
+          });
+        } catch (error) {
+          console.error('Failed to log logout:', error);
+        }
+      }
+    
     setUser(null);
     setCurrentView('homepage');
   };
